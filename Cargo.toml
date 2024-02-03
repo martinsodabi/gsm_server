@@ -1,0 +1,22 @@
+[package]
+name = "gsm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7.2"
+serde = "1.0.1"
+serde_json = "1.0.1"
+base64 = "0.21.5"
+uuid = { version = "1.6.1", features = ["v4", "fast-rng"] }
+dotenv = "0.15.0"
+tokio = { version = "1.35.1", features = ["full"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+url = "2.5.0"
+axum-macros = "0.4.0"
+libsql = "0.1.11"
+sqids = "0.4.0"
+argon2 = "0.5.2"
+jsonwebtoken = "9.2.0"
+chrono = "0.4.31"
