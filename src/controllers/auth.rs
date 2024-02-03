@@ -125,19 +125,29 @@ pub async fn login(
     let user = get_user_by_email(&params.email, &app_state.db_conn).await?;
 
     // TODO: Return a more specific error in a case of unsupported password login!
-    let hashed_password = user.password.ok_or(AppError::InternalServerError)?;
-    let user_pid_vec = user.pid.ok_or(AppError::InternalServerError)?;
+    let hashed_password = user
+        .password
+        .as_ref()
+        .ok_or(AppError::InternalServerError)?;
 
-    let user_pid_string = Uuid::from_slice(user_pid_vec.as_slice())
-        .map_err(|err| {
-            error!("{:?}", err);
-            return AppError::InternalServerError;
-        })?
-        .to_string();
+    let user_pid_vec = user.pid.as_ref().ok_or(AppError::InternalServerError)?;
 
-    let auth_token = create_jwt_token(&app_state.config, &user_pid_string)?;
+    let user_pid = Uuid::from_slice(user_pid_vec.as_slice()).map_err(|err| {
+        error!("{:?}", err);
+        return AppError::InternalServerError;
+    })?;
 
-    if verify_password(&params.password, &hashed_password)? {
+    let auth_token = create_jwt_token(&app_state.config, &user_pid.to_string())?;
+
+    if verify_password(&params.password, hashed_password)? {
+        let cache_user = CacheUser::from(&user)?;
+
+        app_state
+            .user_cache
+            .lock()
+            .await
+            .insert(user_pid, cache_user);
+
         let user_id = user.id.ok_or(AppError::InternalServerError)?;
         let db_profile = get_profile_by_user_id(user_id, &app_state.db_conn).await?;
         let profile_pid_vec = db_profile
@@ -170,7 +180,7 @@ pub async fn login(
 async fn create_profile_and_return(
     app_state: AppState,
     user_id: i64,
-    user_pid: &String,
+    user_pid: &Uuid,
     first_name: &String,
     last_name: &String,
     birth_date: i64,
@@ -189,16 +199,11 @@ async fn create_profile_and_return(
     )
     .await?;
 
-    let auth_token = create_jwt_token(&app_state.config, user_pid)?;
-
-    let user_pid = Uuid::parse_str(user_pid.as_str()).map_err(|err| {
-        error!("{:?}", err);
-        return AppError::InternalServerError;
-    })?;
+    let auth_token = create_jwt_token(&app_state.config, &user_pid.to_string())?;
 
     let cache_user = CacheUser {
         id: user_id as i32,
-        pid: user_pid,
+        pid: *user_pid,
         email: email.to_owned(),
     };
 
@@ -206,7 +211,7 @@ async fn create_profile_and_return(
         .user_cache
         .lock()
         .await
-        .insert(user_pid, cache_user);
+        .insert(*user_pid, cache_user);
 
     let profile_pid_vec = profile.pid.as_ref().ok_or(AppError::InternalServerError)?;
 

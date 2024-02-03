@@ -63,7 +63,7 @@ impl CacheUser {
 pub async fn create_user(
     params: &RegisterParams,
     db_conn: &Connection,
-) -> Result<(i64, String), AppError> {
+) -> Result<(i64, Uuid), AppError> {
     let pid = Uuid::new_v4().as_bytes().to_vec();
     let hashed_password = hash_password(&params.password)?;
 
@@ -84,13 +84,13 @@ pub async fn create_user(
         return AppError::InternalServerError;
     })?;
 
-    Ok((id, uuid.to_string()))
+    Ok((id, uuid))
 }
 
 pub async fn get_user_ids_by_email(
     email: &String,
     db_conn: &Connection,
-) -> Result<(i64, String), AppError> {
+) -> Result<(i64, Uuid), AppError> {
     let query_statement = "SELECT id, pid FROM users WHERE email = ? LIMIT 1";
     let query_args = vec![DBV::from(email.as_str())];
 
@@ -112,7 +112,7 @@ pub async fn get_user_ids_by_email(
         return AppError::InternalServerError;
     })?;
 
-    Ok((id, uuid.to_string()))
+    Ok((id, uuid))
 }
 
 pub async fn get_user_by_email(email: &String, db_conn: &Connection) -> Result<User, AppError> {
